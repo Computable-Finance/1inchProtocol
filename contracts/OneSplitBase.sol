@@ -29,6 +29,7 @@ import "./interface/IBalancerRegistry.sol";
 import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 import "./BalancerLib.sol";
+import "./interface/ICoFiXRouter.sol";
 
 
 contract IOneSplitView is IOneSplitConsts {
@@ -80,7 +81,7 @@ contract OneSplitRoot is IOneSplitView {
     using UniswapV2ExchangeLib for IUniswapV2Exchange;
     using ChaiHelper for IChai;
 
-    uint256 constant internal DEXES_COUNT = 34;
+    uint256 constant internal DEXES_COUNT = 35;
     IERC20 constant internal ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     IERC20 constant internal ZERO_ADDRESS = IERC20(0);
 
@@ -123,6 +124,7 @@ contract OneSplitRoot is IOneSplitView {
     ICompound constant internal compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant internal cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
     IMooniswapRegistry constant internal mooniswapRegistry = IMooniswapRegistry(0x71CD6666064C3A1354a3B4dca5fA1E2D3ee7D303);
+    ICoFiXRouter constant internal iCoFiXRouter = ICoFiXRouter(0x2878469c466638E8c0878bB86898073CA6C91b45);
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
@@ -479,7 +481,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             true,  // "Kyber 4"
             true,  // "Mooniswap 2"
             true,  // "Mooniswap 3"
-            true   // "Mooniswap 4"
+            true,  // "Mooniswap 4"
+            true   // "CoFix"
         ];
 
         for (uint i = 0; i < DEXES_COUNT; i++) {
@@ -541,7 +544,8 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_KYBER_ALL | FLAG_DISABLE_KYBER_4)              ? _calculateNoReturn : calculateKyber4,
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_ETH)    ? _calculateNoReturn : calculateMooniswapOverETH,
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_DAI)    ? _calculateNoReturn : calculateMooniswapOverDAI,
-            invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_USDC)   ? _calculateNoReturn : calculateMooniswapOverUSDC
+            invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_USDC)   ? _calculateNoReturn : calculateMooniswapOverUSDC,
+            invert != flags.check(FLAG_DISABLE_COFIX)                                         ? _calculateNoReturn : calculateCoFix
         ];
     }
 
@@ -1508,6 +1512,16 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return (rets, (fromToken.isETH() || destToken.isETH()) ? 80_000 : 110_000);
     }
 
+    //TODO implement cofix calculations
+    function calculateCoFix(IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 parts,
+        uint256 /*flags*/
+    ) internal view returns (uint256[] memory rets, uint256 gas) {
+
+    }
+
     function calculateMooniswap(
         IERC20 fromToken,
         IERC20 destToken,
@@ -1838,7 +1852,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnKyber4,
             _swapOnMooniswapETH,
             _swapOnMooniswapDAI,
-            _swapOnMooniswapUSDC
+            _swapOnMooniswapUSDC,
+            _swapOnCoFix
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -2194,6 +2209,16 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             toAave.redeem(toAave.balanceOf(address(this)));
             return;
         }
+    }
+
+    //TODO implement swap for CoFix
+    function _swapOnCoFix(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256 amount,
+        uint256 flags
+    ) internal {
+
     }
 
     function _swapOnMooniswap(
