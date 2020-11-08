@@ -44,6 +44,22 @@ library UniversalERC20 {
         }
     }
 
+    function universalTransferFromSenderPlusOracleFeeToThis(IERC20 token, uint256 amount, uint256 oracleFee) internal {
+        if (amount == 0) {
+            return;
+        }
+
+        if (isETH(token)) {
+            uint256 remainder = msg.value.sub(amount).sub(oracleFee);
+            if (remainder > 0) {
+                // Return remainder if exist
+                msg.sender.transfer(remainder);
+            }
+        } else {
+            token.safeTransferFrom(msg.sender, address(this), amount);
+        }
+    }
+
     function universalTransferFromSenderToThis(IERC20 token, uint256 amount) internal {
         if (amount == 0) {
             return;

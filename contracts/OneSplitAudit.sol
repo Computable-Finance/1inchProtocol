@@ -50,6 +50,9 @@ contract OneSplitAudit is IOneSplit, Ownable {
     IWETH constant internal weth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IFreeFromUpTo public constant chi = IFreeFromUpTo(0x0000000000004946c0e9F43F4Dee607b0eF1fA1c);
 
+    uint256 internal constant COFIX_INDEX = 34;
+    uint256 internal constant COFIX_ORACLE_FEE = 0.01 ether; // only for CoFiX
+
     IOneSplitMulti public oneSplitImpl;
 
     event ImplementationUpdated(address indexed newImpl);
@@ -267,6 +270,13 @@ contract OneSplitAudit is IOneSplit, Ownable {
         );
     }
 
+
+    struct SwapParams {
+        uint256 confirmed;
+        uint256 oracleFee;
+        bool useCoFiX;
+    }
+
     /// @notice Swap `amount` of first element of `tokens` to the latest element of `destToken`
     /// @param tokens (IERC20[]) Addresses of token or `address(0)` for Ether
     /// @param amount (uint256) Amount for `fromToken`
@@ -286,7 +296,13 @@ contract OneSplitAudit is IOneSplit, Ownable {
     ) public payable returns(uint256 returnAmount) {
         require(tokens.length >= 2 && amount > 0, "OneSplit: swap makes no sense");
         require(flags.length == tokens.length - 1, "OneSplit: flags array length is invalid");
-        require((msg.value != 0) == tokens.first().isETH(), "OneSplit: msg.value should be used only for ETH swap");
+        SwapParams memory params; // introduce SwapParams struct to avoid stack too deep error
+        params.useCoFiX = (distribution.length > COFIX_INDEX && distribution[COFIX_INDEX] != 0) ? true : false; // TODO: check flags also
+        if (params.useCoFiX) {
+            require(msg.value != 0, "OneSplit: oracle fee required");
+        } else {
+            require((msg.value != 0) == tokens.first().isETH(), "OneSplit: msg.value should be used only for ETH swap");
+        }
         require(feePercent <= 0.03e18, "OneSplit: feePercent out of range");
 
         uint256 gasStart = gasleft();
@@ -300,18 +316,42 @@ contract OneSplitAudit is IOneSplit, Ownable {
                 tokens.first().allowance(msg.sender, address(this))
             );
         }
-        tokens.first().universalTransferFromSenderToThis(amount);
-        uint256 confirmed = tokens.first().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
+
+        if (params.useCoFiX) {
+            if (!tokens.first().isETH() && !tokens.last().isETH()) {
+                params.oracleFee = COFIX_ORACLE_FEE * 2; // swap twice: token A -> ETH, then ETH -> token B
+            } else {
+                params.oracleFee = COFIX_ORACLE_FEE; // swap once: token -> ETH or ETH -> token
+            }
+            tokens.first().universalTransferFromSenderPlusOracleFeeToThis(amount, params.oracleFee); // msg.value should add oracleFee
+            params.confirmed = tokens.first().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
+            if (tokens.first().isETH()) {
+                params.confirmed = params.confirmed.sub(params.oracleFee);  // confirmed = balance - oracleFee, balance = msg.value
+            }
+        } else {
+            tokens.first().universalTransferFromSenderToThis(amount);
+            params.confirmed = tokens.first().universalBalanceOf(address(this)).sub(beforeBalances.ofFromToken);
+        }
 
         // Swap
-        tokens.first().universalApprove(address(oneSplitImpl), confirmed);
-        oneSplitImpl.swapMulti.value(tokens.first().isETH() ? confirmed : 0)(
-            tokens,
-            confirmed,
-            minReturn,
-            distribution,
-            flags
-        );
+        tokens.first().universalApprove(address(oneSplitImpl), params.confirmed);
+        if (params.useCoFiX) {
+            oneSplitImpl.swapMulti.value(tokens.first().isETH() ? params.confirmed.add(params.oracleFee) : params.oracleFee)( // always oracleFee!
+                tokens,
+                params.confirmed,
+                minReturn,
+                distribution,
+                flags
+            ); 
+        } else {
+            oneSplitImpl.swapMulti.value(tokens.first().isETH() ? params.confirmed : 0)(
+                tokens,
+                params.confirmed,
+                minReturn,
+                distribution,
+                flags
+            );
+        }
 
         Balances memory afterBalances = _getFirstAndLastBalances(tokens, false);
 

@@ -304,6 +304,26 @@ contract OneSplitWrap is
         uint256 flags
     ) internal {
         fromToken.universalApprove(address(oneSplit), amount);
+
+        // handle oracle fee by checking if CoFiX is in distribution TODO: check flags
+        if (distribution.length > COFIX_INDEX && distribution[COFIX_INDEX] != 0) { // means CoFiX is in distribution
+            uint256 oracleFee = 0;
+            if (!fromToken.isETH() && !destToken.isETH()) {
+                oracleFee = COFIX_ORACLE_FEE * 2; // swap twice: token A -> ETH, then ETH ->  token B
+            } else {
+                oracleFee = COFIX_ORACLE_FEE; // swap once: token -> ETH or ETH -> token
+            }
+            oneSplit.swap.value(fromToken.isETH() ? amount.add(oracleFee) : oracleFee)( // TODO: must handle nest oracle fee here
+                fromToken,
+                destToken,
+                amount,
+                0,
+                distribution,
+                flags
+            );
+            return;
+        }
+
         oneSplit.swap.value(fromToken.isETH() ? amount : 0)(
             fromToken,
             destToken,

@@ -2592,7 +2592,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             true,  // "Mooniswap 2"
             true,  // "Mooniswap 3"
             true,  // "Mooniswap 4"
-            true   // "CoFix"
+            true   // "CoFiX"
         ];
 
         for (uint i = 0; i < DEXES_COUNT; i++) {
@@ -2655,7 +2655,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_ETH)    ? _calculateNoReturn : calculateMooniswapOverETH,
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_DAI)    ? _calculateNoReturn : calculateMooniswapOverDAI,
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_USDC)   ? _calculateNoReturn : calculateMooniswapOverUSDC,
-            invert != flags.check(FLAG_DISABLE_COFIX)                                         ? _calculateNoReturn : calculateCoFix
+            invert != flags.check(FLAG_DISABLE_COFIX)                                         ? _calculateNoReturn : calculateCoFiX
         ];
     }
 
@@ -3623,7 +3623,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
     }
 
     //TODO implement cofix calculations
-    function calculateCoFix(IERC20 fromToken,
+    function calculateCoFiX(IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
@@ -3963,7 +3963,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnMooniswapETH,
             _swapOnMooniswapDAI,
             _swapOnMooniswapUSDC,
-            _swapOnCoFix
+            _swapOnCoFiX
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -4321,8 +4321,8 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
     }
 
-    //TODO implement swap for CoFix
-    function _swapOnCoFix(
+    //TODO implement swap for CoFiX
+    function _swapOnCoFiX(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,

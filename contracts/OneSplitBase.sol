@@ -29,7 +29,9 @@ import "./interface/IBalancerRegistry.sol";
 import "./IOneSplit.sol";
 import "./UniversalERC20.sol";
 import "./BalancerLib.sol";
+import "./interface/ICoFiXFactory.sol";
 import "./interface/ICoFiXRouter.sol";
+import "./interface/ICoFiXPair.sol";
 
 
 contract IOneSplitView is IOneSplitConsts {
@@ -124,7 +126,8 @@ contract OneSplitRoot is IOneSplitView {
     ICompound constant internal compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant internal cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
     IMooniswapRegistry constant internal mooniswapRegistry = IMooniswapRegistry(0x71CD6666064C3A1354a3B4dca5fA1E2D3ee7D303);
-    ICoFiXRouter constant internal iCoFiXRouter = ICoFiXRouter(0x2878469c466638E8c0878bB86898073CA6C91b45);
+    ICoFiXFactory constant internal cofixFactory = ICoFiXFactory(0x66C64ecC3A6014733325a8f2EBEE46B4CA3ED550);
+    ICoFiXRouter constant internal cofixRouter = ICoFiXRouter(0x26aaD4D82f6c9FA6E34D8c1067429C986A055872);
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
@@ -137,6 +140,9 @@ contract OneSplitRoot is IOneSplitView {
     IBalancerHelper constant internal balancerHelper = IBalancerHelper(0xA961672E8Db773be387e775bc4937C678F3ddF9a);
 
     int256 internal constant VERY_NEGATIVE_VALUE = -1e72;
+
+    uint256 internal constant COFIX_INDEX = 34;
+    uint256 internal constant COFIX_ORACLE_FEE = 0.01 ether; // only for CoFiX
 
     function _findBestDistribution(
         uint256 s,                // parts
@@ -482,7 +488,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             true,  // "Mooniswap 2"
             true,  // "Mooniswap 3"
             true,  // "Mooniswap 4"
-            true   // "CoFix"
+            true   // "CoFiX"
         ];
 
         for (uint i = 0; i < DEXES_COUNT; i++) {
@@ -545,7 +551,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_ETH)    ? _calculateNoReturn : calculateMooniswapOverETH,
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_DAI)    ? _calculateNoReturn : calculateMooniswapOverDAI,
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_USDC)   ? _calculateNoReturn : calculateMooniswapOverUSDC,
-            invert != flags.check(FLAG_DISABLE_COFIX)                                         ? _calculateNoReturn : calculateCoFix
+            invert != flags.check(FLAG_DISABLE_COFIX)                                         ? _calculateNoReturn : calculateCoFiX
         ];
     }
 
@@ -1513,13 +1519,59 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
     }
 
     //TODO implement cofix calculations
-    function calculateCoFix(IERC20 fromToken,
+    function calculateCoFiX(
+        IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
         uint256 parts,
-        uint256 /*flags*/
+        uint256 flags
     ) internal view returns (uint256[] memory rets, uint256 gas) {
+        return _calculateCoFiX(
+            fromToken,
+            destToken,
+            _linearInterpolation(amount, parts),
+            flags
+        );
+    }
 
+    function _calculateCoFiX(
+        IERC20 fromToken,
+        IERC20 destToken,
+        uint256[] memory amounts,
+        uint256 /*flags*/
+    ) internal view returns(uint256[] memory rets, uint256 gas) {
+        rets = amounts;
+
+        if (!fromToken.isETH()) {
+            address fromPair = cofixFactory.getPair(address(fromToken));
+            if (fromPair == address(0)) {
+                return (new uint256[](rets.length), 0);
+            }
+
+            uint256 fromTokenBalance = fromToken.universalBalanceOf(fromPair);
+            uint256 fromEtherBalance = weth.balanceOf(fromPair);
+
+            for (uint i = 0; i < rets.length; i++) {
+                // TODO: how to pass in oracle price
+                // rets[i] = _calculateUniswapFormula(fromTokenBalance, fromEtherBalance, rets[i]);
+            }
+        }
+
+        if (!destToken.isETH()) {
+            address toPair = cofixFactory.getPair(address(destToken));
+            if (toPair == address(0)) {
+                return (new uint256[](rets.length), 0);
+            }
+
+            uint256 toEtherBalance = weth.balanceOf(toPair);
+            uint256 toTokenBalance = destToken.universalBalanceOf(toPair);
+
+            for (uint i = 0; i < rets.length; i++) {
+                // rets[i] = _calculateUniswapFormula(toEtherBalance, toTokenBalance, rets[i]);
+            }
+        }
+
+        return (rets, fromToken.isETH() || destToken.isETH() ? 60_000 : 100_000);
     }
 
     function calculateMooniswap(
@@ -1853,7 +1905,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnMooniswapETH,
             _swapOnMooniswapDAI,
             _swapOnMooniswapUSDC,
-            _swapOnCoFix
+            _swapOnCoFiX
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -1875,7 +1927,20 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             return amount;
         }
 
-        fromToken.universalTransferFrom(msg.sender, address(this), amount);
+        // `msg.value` could be large than `amount` for CoFiX
+        // handle oracle fee by checking if CoFiX is in distribution
+        if (distribution.length > COFIX_INDEX && distribution[COFIX_INDEX] != 0) { // means CoFiX is in distribution
+            uint256 oracleFee = 0;
+            if (!fromToken.isETH() && !destToken.isETH()) {
+                oracleFee = COFIX_ORACLE_FEE * 2; // swap twice: token A -> ETH, then ETH ->  token B
+            } else {
+                oracleFee = COFIX_ORACLE_FEE; // swap once: token -> ETH or ETH -> token
+            }
+            fromToken.universalTransferFrom(msg.sender, address(this), amount.add(oracleFee));
+        } else {
+            fromToken.universalTransferFrom(msg.sender, address(this), amount);
+        }
+
         uint256 remainingAmount = fromToken.universalBalanceOf(address(this));
 
         for (uint i = 0; i < distribution.length; i++) {
@@ -2211,14 +2276,38 @@ contract OneSplit is IOneSplit, OneSplitRoot {
         }
     }
 
-    //TODO implement swap for CoFix
-    function _swapOnCoFix(
+    //TODO implement swap for CoFiX
+    function _swapOnCoFiX(
         IERC20 fromToken,
         IERC20 destToken,
         uint256 amount,
-        uint256 flags
+        uint256 /*flags*/
     ) internal {
+        ICoFiXRouter cRouter = cofixRouter;
+        uint256 returnAmount = amount;
 
+        if (!fromToken.isETH()) {
+            fromToken.universalApprove(address(cRouter), returnAmount);
+            (,returnAmount) = cRouter.swapExactTokensForETH.value(COFIX_ORACLE_FEE)( // TODO: oracle fee
+                address(fromToken),
+                returnAmount,
+                0,
+                address(this),
+                address(this),
+                now
+            );
+        }
+
+        if (!destToken.isETH()) {
+            (,returnAmount) = cRouter.swapExactETHForTokens.value(COFIX_ORACLE_FEE)( // TODO: oracle fee
+                address(destToken),
+                returnAmount,
+                0,
+                address(this),
+                address(this),
+                now
+            );
+        }
     }
 
     function _swapOnMooniswap(

@@ -1,4 +1,4 @@
-pragma solidity ^0.5.17;
+pragma solidity ^0.5.0;
 
 interface ICoFiXRouter {
     function factory() external pure returns (address);
@@ -15,6 +15,23 @@ interface ICoFiXRouter {
     /// @param  deadline The dealine of this request
     /// @return liquidity The real liquidity or XToken minted from pool
     function addLiquidity(
+        address token,
+        uint amountETH,
+        uint amountToken,
+        uint liquidityMin,
+        address to,
+        uint deadline
+    ) external payable returns (uint liquidity);
+
+    /// @dev Maker add liquidity to pool, get pool token (mint XToken) and stake automatically (notice: msg.value = amountETH + oracle fee)
+    /// @param  token The address of ERC20 Token
+    /// @param  amountETH The amount of ETH added to pool
+    /// @param  amountToken The amount of Token added to pool
+    /// @param  liquidityMin The minimum liquidity maker wanted
+    /// @param  to The target address receiving the liquidity pool (XToken)
+    /// @param  deadline The dealine of this request
+    /// @return liquidity The real liquidity or XToken minted from pool
+    function addLiquidityAndStake(
         address token,
         uint amountETH,
         uint amountToken,
@@ -58,6 +75,7 @@ interface ICoFiXRouter {
     /// @param  amountIn The exact amount of ETH a trader want to swap into pool
     /// @param  amountOutMin The minimum amount of Token a trader want to swap out of pool
     /// @param  to The target address receiving the Token
+    /// @param  rewardTo The target address receiving the CoFi Token as rewards
     /// @param  deadline The dealine of this request
     /// @return _amountIn The real amount of ETH transferred into pool
     /// @return _amountOut The real amount of Token transferred out of pool
@@ -66,6 +84,7 @@ interface ICoFiXRouter {
         uint amountIn,
         uint amountOutMin,
         address to,
+        address rewardTo,
         uint deadline
     ) external payable returns (uint _amountIn, uint _amountOut);
 
@@ -74,6 +93,7 @@ interface ICoFiXRouter {
     /// @param  amountIn The exact amount of Token a trader want to swap into pool
     /// @param  amountOutMin The mininum amount of ETH a trader want to swap out of pool
     /// @param  to The target address receiving the ETH
+    /// @param  rewardTo The target address receiving the CoFi Token as rewards
     /// @param  deadline The dealine of this request
     /// @return _amountIn The real amount of Token transferred into pool
     /// @return _amountOut The real amount of ETH transferred out of pool
@@ -82,6 +102,27 @@ interface ICoFiXRouter {
         uint amountIn,
         uint amountOutMin,
         address to,
+        address rewardTo,
+        uint deadline
+    ) external payable returns (uint _amountIn, uint _amountOut);
+
+    /// @dev Trader swap exact amount of ERC20 Tokens for other ERC20 Tokens (notice: msg.value = oracle fee)
+    /// @param  tokenIn The address of ERC20 Token a trader want to swap into pool
+    /// @param  tokenOut The address of ERC20 Token a trader want to swap out of pool
+    /// @param  amountIn The exact amount of Token a trader want to swap into pool
+    /// @param  amountOutMin The mininum amount of ETH a trader want to swap out of pool
+    /// @param  to The target address receiving the Token
+    /// @param  rewardTo The target address receiving the CoFi Token as rewards
+    /// @param  deadline The dealine of this request
+    /// @return _amountIn The real amount of Token transferred into pool
+    /// @return _amountOut The real amount of Token transferred out of pool
+    function swapExactTokensForTokens(
+        address tokenIn,
+        address tokenOut,
+        uint amountIn,
+        uint amountOutMin,
+        address to,
+        address rewardTo,
         uint deadline
     ) external payable returns (uint _amountIn, uint _amountOut);
 
@@ -90,6 +131,7 @@ interface ICoFiXRouter {
     /// @param  amountInMax The max amount of ETH a trader want to swap into pool
     /// @param  amountOutExact The exact amount of Token a trader want to swap out of pool
     /// @param  to The target address receiving the Token
+    /// @param  rewardTo The target address receiving the CoFi Token as rewards
     /// @param  deadline The dealine of this request
     /// @return _amountIn The real amount of ETH transferred into pool
     /// @return _amountOut The real amount of Token transferred out of pool
@@ -98,6 +140,7 @@ interface ICoFiXRouter {
         uint amountInMax,
         uint amountOutExact,
         address to,
+        address rewardTo,
         uint deadline
     ) external payable returns (uint _amountIn, uint _amountOut);
 
@@ -106,6 +149,7 @@ interface ICoFiXRouter {
     /// @param  amountInMax The max amount of Token a trader want to swap into pool
     /// @param  amountOutExact The exact amount of ETH a trader want to swap out of pool
     /// @param  to The target address receiving the ETH
+    /// @param  rewardTo The target address receiving the CoFi Token as rewards
     /// @param  deadline The dealine of this request
     /// @return _amountIn The real amount of Token transferred into pool
     /// @return _amountOut The real amount of ETH transferred out of pool
@@ -114,6 +158,7 @@ interface ICoFiXRouter {
         uint amountInMax,
         uint amountOutExact,
         address to,
+        address rewardTo,
         uint deadline
     ) external payable returns (uint _amountIn, uint _amountOut);
 }
