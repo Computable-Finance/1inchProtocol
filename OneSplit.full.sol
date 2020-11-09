@@ -181,7 +181,6 @@ contract IOneSplitConsts {
     uint256 internal constant FLAG_DISABLE_MOONISWAP_DAI = 0x20000000000000000;
     uint256 internal constant FLAG_DISABLE_MOONISWAP_USDC = 0x40000000000000000;
     uint256 internal constant FLAG_DISABLE_MOONISWAP_POOL_TOKEN = 0x80000000000000000;
-    uint256 internal constant FLAG_DISABLE_COFIX = 0x40000000000000000;
 }
 
 
@@ -1985,132 +1984,9 @@ library BalancerLib {
     }
 }
 
-// File: contracts/interface/ICoFiXRouter.sol
-
-pragma solidity ^0.5.17;
-
-interface ICoFiXRouter {
-    function factory() external pure returns (address);
-    function WETH() external pure returns (address);
-
-    // All pairs: {ETH <-> ERC20 Token}
-
-    /// @dev Maker add liquidity to pool, get pool token (mint XToken to maker) (notice: msg.value = amountETH + oracle fee)
-    /// @param  token The address of ERC20 Token
-    /// @param  amountETH The amount of ETH added to pool
-    /// @param  amountToken The amount of Token added to pool
-    /// @param  liquidityMin The minimum liquidity maker wanted
-    /// @param  to The target address receiving the liquidity pool (XToken)
-    /// @param  deadline The dealine of this request
-    /// @return liquidity The real liquidity or XToken minted from pool
-    function addLiquidity(
-        address token,
-        uint amountETH,
-        uint amountToken,
-        uint liquidityMin,
-        address to,
-        uint deadline
-    ) external payable returns (uint liquidity);
-
-    /// @dev Maker remove liquidity from pool to get ERC20 Token back (maker burn XToken) (notice: msg.value = oracle fee)
-    /// @param  token The address of ERC20 Token
-    /// @param  liquidity The amount of liquidity (XToken) sent to pool, or the liquidity to remove
-    /// @param  amountTokenMin The minimum amount of Token wanted to get from pool
-    /// @param  to The target address receiving the Token
-    /// @param  deadline The dealine of this request
-    /// @return amountToken The real amount of Token transferred from the pool
-    function removeLiquidityGetToken(
-        address token,
-        uint liquidity,
-        uint amountTokenMin,
-        address to,
-        uint deadline
-    ) external payable returns (uint amountToken);
-
-    /// @dev Maker remove liquidity from pool to get ETH back (maker burn XToken) (notice: msg.value = oracle fee)
-    /// @param  token The address of ERC20 Token
-    /// @param  liquidity The amount of liquidity (XToken) sent to pool, or the liquidity to remove
-    /// @param  amountETHMin The minimum amount of ETH wanted to get from pool
-    /// @param  to The target address receiving the ETH
-    /// @param  deadline The dealine of this request
-    /// @return amountETH The real amount of ETH transferred from the pool
-    function removeLiquidityGetETH(
-        address token,
-        uint liquidity,
-        uint amountETHMin,
-        address to,
-        uint deadline
-    ) external payable returns (uint amountETH);
-
-    /// @dev Trader swap exact amount of ETH for ERC20 Tokens (notice: msg.value = amountIn + oracle fee)
-    /// @param  token The address of ERC20 Token
-    /// @param  amountIn The exact amount of ETH a trader want to swap into pool
-    /// @param  amountOutMin The minimum amount of Token a trader want to swap out of pool
-    /// @param  to The target address receiving the Token
-    /// @param  deadline The dealine of this request
-    /// @return _amountIn The real amount of ETH transferred into pool
-    /// @return _amountOut The real amount of Token transferred out of pool
-    function swapExactETHForTokens(
-        address token,
-        uint amountIn,
-        uint amountOutMin,
-        address to,
-        uint deadline
-    ) external payable returns (uint _amountIn, uint _amountOut);
-
-    /// @dev Trader swap exact amount of ERC20 Tokens for ETH (notice: msg.value = oracle fee)
-    /// @param  token The address of ERC20 Token
-    /// @param  amountIn The exact amount of Token a trader want to swap into pool
-    /// @param  amountOutMin The mininum amount of ETH a trader want to swap out of pool
-    /// @param  to The target address receiving the ETH
-    /// @param  deadline The dealine of this request
-    /// @return _amountIn The real amount of Token transferred into pool
-    /// @return _amountOut The real amount of ETH transferred out of pool
-    function swapExactTokensForETH(
-        address token,
-        uint amountIn,
-        uint amountOutMin,
-        address to,
-        uint deadline
-    ) external payable returns (uint _amountIn, uint _amountOut);
-
-    /// @dev Trader swap ETH for exact amount of ERC20 Tokens (notice: msg.value = amountInMax + oracle fee)
-    /// @param  token The address of ERC20 Token
-    /// @param  amountInMax The max amount of ETH a trader want to swap into pool
-    /// @param  amountOutExact The exact amount of Token a trader want to swap out of pool
-    /// @param  to The target address receiving the Token
-    /// @param  deadline The dealine of this request
-    /// @return _amountIn The real amount of ETH transferred into pool
-    /// @return _amountOut The real amount of Token transferred out of pool
-    function swapETHForExactTokens(
-        address token,
-        uint amountInMax,
-        uint amountOutExact,
-        address to,
-        uint deadline
-    ) external payable returns (uint _amountIn, uint _amountOut);
-
-    /// @dev Trader swap ERC20 Tokens for exact amount of ETH (notice: msg.value = oracle fee)
-    /// @param  token The address of ERC20 Token
-    /// @param  amountInMax The max amount of Token a trader want to swap into pool
-    /// @param  amountOutExact The exact amount of ETH a trader want to swap out of pool
-    /// @param  to The target address receiving the ETH
-    /// @param  deadline The dealine of this request
-    /// @return _amountIn The real amount of Token transferred into pool
-    /// @return _amountOut The real amount of ETH transferred out of pool
-    function swapTokensForExactETH(
-        address token,
-        uint amountInMax,
-        uint amountOutExact,
-        address to,
-        uint deadline
-    ) external payable returns (uint _amountIn, uint _amountOut);
-}
-
 // File: contracts/OneSplitBase.sol
 
 pragma solidity ^0.5.0;
-
 
 
 
@@ -2191,7 +2067,7 @@ contract OneSplitRoot is IOneSplitView {
     using UniswapV2ExchangeLib for IUniswapV2Exchange;
     using ChaiHelper for IChai;
 
-    uint256 constant internal DEXES_COUNT = 35;
+    uint256 constant internal DEXES_COUNT = 34;
     IERC20 constant internal ETH_ADDRESS = IERC20(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
     IERC20 constant internal ZERO_ADDRESS = IERC20(0);
 
@@ -2234,7 +2110,6 @@ contract OneSplitRoot is IOneSplitView {
     ICompound constant internal compound = ICompound(0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B);
     ICompoundEther constant internal cETH = ICompoundEther(0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5);
     IMooniswapRegistry constant internal mooniswapRegistry = IMooniswapRegistry(0x71CD6666064C3A1354a3B4dca5fA1E2D3ee7D303);
-    ICoFiXRouter constant internal iCoFiXRouter = ICoFiXRouter(0x2878469c466638E8c0878bB86898073CA6C91b45);
     IUniswapV2Factory constant internal uniswapV2 = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
     IDForceSwap constant internal dforceSwap = IDForceSwap(0x03eF3f37856bD08eb47E2dE7ABc4Ddd2c19B60F2);
     IMStable constant internal musd = IMStable(0xe2f2a5C287993345a840Db3B0845fbC70f5935a5);
@@ -2591,8 +2466,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             true,  // "Kyber 4"
             true,  // "Mooniswap 2"
             true,  // "Mooniswap 3"
-            true,  // "Mooniswap 4"
-            true   // "CoFiX"
+            true   // "Mooniswap 4"
         ];
 
         for (uint i = 0; i < DEXES_COUNT; i++) {
@@ -2654,8 +2528,7 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
             invert != flags.check(FLAG_DISABLE_KYBER_ALL | FLAG_DISABLE_KYBER_4)              ? _calculateNoReturn : calculateKyber4,
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_ETH)    ? _calculateNoReturn : calculateMooniswapOverETH,
             invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_DAI)    ? _calculateNoReturn : calculateMooniswapOverDAI,
-            invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_USDC)   ? _calculateNoReturn : calculateMooniswapOverUSDC,
-            invert != flags.check(FLAG_DISABLE_COFIX)                                         ? _calculateNoReturn : calculateCoFiX
+            invert != flags.check(FLAG_DISABLE_MOONISWAP_ALL | FLAG_DISABLE_MOONISWAP_USDC)   ? _calculateNoReturn : calculateMooniswapOverUSDC
         ];
     }
 
@@ -3622,16 +3495,6 @@ contract OneSplitView is IOneSplitView, OneSplitRoot {
         return (rets, (fromToken.isETH() || destToken.isETH()) ? 80_000 : 110_000);
     }
 
-    //TODO implement cofix calculations
-    function calculateCoFiX(IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256 parts,
-        uint256 /*flags*/
-    ) internal view returns (uint256[] memory rets, uint256 gas) {
-
-    }
-
     function calculateMooniswap(
         IERC20 fromToken,
         IERC20 destToken,
@@ -3962,8 +3825,7 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             _swapOnKyber4,
             _swapOnMooniswapETH,
             _swapOnMooniswapDAI,
-            _swapOnMooniswapUSDC,
-            _swapOnCoFiX
+            _swapOnMooniswapUSDC
         ];
 
         require(distribution.length <= reserves.length, "OneSplit: Distribution array should not exceed reserves array size");
@@ -4319,16 +4181,6 @@ contract OneSplit is IOneSplit, OneSplitRoot {
             toAave.redeem(toAave.balanceOf(address(this)));
             return;
         }
-    }
-
-    //TODO implement swap for CoFiX
-    function _swapOnCoFiX(
-        IERC20 fromToken,
-        IERC20 destToken,
-        uint256 amount,
-        uint256 flags
-    ) internal {
-
     }
 
     function _swapOnMooniswap(
